@@ -1,0 +1,81 @@
+<div id="health-app"></div>
+<style>
+#health-app { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px 0; }
+.health-header { text-align: center; margin-bottom: 24px; }
+.health-header h2 { font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #3b82f6, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 4px; }
+.health-header .sub { color: #8b8fa3; font-size: 13px; }
+.health-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; max-width: 700px; margin-left: auto; margin-right: auto; }
+.h-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; text-align: center; }
+.h-stat .n { font-size: 28px; font-weight: 700; line-height: 1; }
+.h-stat .l { color: #8b8fa3; font-size: 12px; margin-top: 4px; }
+.h-stat.ok .n { color: #22c55e; }
+.h-stat.err .n { color: #ef4444; }
+.h-stat.all .n { color: #3b82f6; }
+.h-stat.ch .n { color: #a855f7; }
+.h-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.h-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px; transition: transform 0.15s; }
+.h-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+.h-card .hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.h-card .mn { font-size: 14px; font-weight: 600; word-break: break-all; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 16px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge.ok { background: rgba(34,197,94,0.12); color: #22c55e; }
+.badge.err { background: rgba(239,68,68,0.12); color: #ef4444; }
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.badge.ok .dot { background: #22c55e; box-shadow: 0 0 5px #22c55e; }
+.badge.err .dot { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+.h-meta { display: flex; gap: 12px; color: #8b8fa3; font-size: 11px; margin-bottom: 8px; }
+.ch-list { display: flex; flex-direction: column; gap: 4px; }
+.ch-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-radius: 6px; font-size: 11px; background: rgba(255,255,255,0.02); }
+.ch-item .cs { width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+.ch-item .cs.ok { background: #22c55e; }
+.ch-item .cs.fail { background: #ef4444; }
+.ch-item .cn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 6px; }
+.ch-item .cr { color: #8b8fa3; white-space: nowrap; }
+.h-loading { text-align: center; padding: 40px; color: #8b8fa3; }
+.h-err { text-align: center; padding: 16px; color: #ef4444; background: rgba(239,68,68,0.1); border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
+</style>
+<script>
+(function(){
+  var API='http://10.36.16.20:8890/api/health';
+  var el=document.getElementById('health-app');
+  function fmt(ms){if(ms==null)return'-';if(ms<1000)return ms+'ms';return(ms/1000).toFixed(1)+'s';}
+  function rc(ms){if(ms==null)return'#8b8fa3';if(ms<500)return'#22c55e';if(ms<2000)return'#eab308';return'#ef4444';}
+  function render(d){
+    var ms=Object.values(d.models||{});
+    ms.sort(function(a,b){if(a.status!==b.status)return a.status==='healthy'?-1:1;return a.name.localeCompare(b.name);});
+    var hc=ms.filter(function(m){return m.status==='healthy'}).length;
+    var uc=ms.length-hc;
+    var cc=(d.channels||[]).length;
+    var h='<div class="health-header"><h2>\ud83d\udd0d \u6a21\u578b\u5065\u5eb7\u76d1\u63a7</h2><div class="sub">\u6700\u540e\u66f4\u65b0: '+(d.last_update||'-')+' | \u6bcf30\u79d2\u81ea\u52a8\u5237\u65b0</div></div>';
+    if(d.error)h+='<div class="h-err">\u26a0\ufe0f '+d.error+'</div>';
+    h+='<div class="health-stats">';
+    h+='<div class="h-stat all"><div class="n">'+ms.length+'</div><div class="l">\u6a21\u578b\u603b\u6570</div></div>';
+    h+='<div class="h-stat ok"><div class="n">'+hc+'</div><div class="l">\u5065\u5eb7</div></div>';
+    h+='<div class="h-stat err"><div class="n">'+uc+'</div><div class="l">\u5f02\u5e38</div></div>';
+    h+='<div class="h-stat ch"><div class="n">'+cc+'</div><div class="l">\u6e20\u9053\u6570</div></div>';
+    h+='</div><div class="h-grid">';
+    for(var i=0;i<ms.length;i++){
+      var m=ms[i],sc=m.status==='healthy'?'ok':'err',st=m.status==='healthy'?'\u53ef\u7528':'\u4e0d\u53ef\u7528';
+      h+='<div class="h-card"><div class="hdr"><span class="mn">'+m.name+'</span><span class="badge '+sc+'"><span class="dot"></span>'+st+'</span></div>';
+      h+='<div class="h-meta"><span>\ud83d\udd17 '+m.healthy_count+'/'+m.total_count+' \u6e20\u9053\u53ef\u7528</span><span style="color:'+rc(m.min_response_time)+'">\u26a1 '+fmt(m.min_response_time)+'</span></div>';
+      h+='<div class="ch-list">';
+      var chs=(m.channels||[]).slice().sort(function(a,b){return(a.response_time||99999)-(b.response_time||99999);});
+      for(var j=0;j<chs.length;j++){
+        var c=chs[j],cok=c.status==='healthy';
+        h+='<div class="ch-item"><div class="cs '+(cok?'ok':'fail')+'"></div><div class="cn">'+c.name+'</div><div class="cr" style="color:'+rc(c.response_time)+'">'+fmt(c.response_time)+'</div></div>';
+      }
+      h+='</div></div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }
+  function load(){
+    fetch(API).then(function(r){return r.json();}).then(render).catch(function(e){
+      el.innerHTML='<div class="h-err">\u26a0\ufe0f \u65e0\u6cd5\u8fde\u63a5\u76d1\u63a7\u670d\u52a1: '+e.message+'</div>';
+    });
+  }
+  el.innerHTML='<div class="h-loading">\u23f3 \u6b63\u5728\u52a0\u8f7d\u6a21\u578b\u5065\u5eb7\u6570\u636e...</div>';
+  load();
+  setInterval(load,30000);
+})();
+</script>
